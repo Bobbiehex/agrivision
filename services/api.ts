@@ -1,13 +1,18 @@
+/// <reference types="vite/client" />
 import { WeatherData, CropData, AnimalData, HealthStatus } from '../types';
 import { MOCK_WEATHER } from '../constants';
 import { dbService } from './db';
+
+// Read OpenWeather API key from Vite environment variables (must be prefixed with VITE_)
+// Make sure your .env (and Vercel env) uses VITE_OPEN_WEATHER_API_KEY
+const OPEN_WEATHER_API_KEY = (import.meta.env.VITE_OPEN_WEATHER_API_KEY as string | undefined) || '';
 
 // Simulator utility to jitter values slightly to look "live"
 const jitter = (value: number, amount: number) => {
   return value + (Math.random() * amount * 2 - amount);
 };
 
-const OPEN_WEATHER_API_KEY = '9200f265ac75700fd702e86f97d025f0';
+
 const FALLBACK_LOCATION = 'Fresno'; // Default if permission denied
 
 const getCurrentPosition = (): Promise<GeolocationPosition> => {
@@ -36,6 +41,18 @@ export const ApiService = {
    */
   getWeather: async (): Promise<WeatherData> => {
     try {
+      // If key is not configured, warn and fall back to simulated weather immediately
+      if (!OPEN_WEATHER_API_KEY) {
+        console.warn('VITE_OPEN_WEATHER_API_KEY is not set — falling back to local simulated weather. Set VITE_OPEN_WEATHER_API_KEY in your .env or Vercel env vars to enable real weather data.');
+        await new Promise(resolve => setTimeout(resolve, 600));
+        return {
+          ...MOCK_WEATHER,
+          temp: parseFloat(jitter(MOCK_WEATHER.temp, 0.5).toFixed(1)),
+          windSpeed: parseFloat(jitter(MOCK_WEATHER.windSpeed, 2).toFixed(1)),
+          humidity: Math.min(100, Math.max(0, Math.round(jitter(MOCK_WEATHER.humidity, 3)))),
+        };
+      }
+
       let url = `https://api.openweathermap.org/data/2.5/weather?q=${FALLBACK_LOCATION}&units=metric&appid=${OPEN_WEATHER_API_KEY}`;
       
       try {

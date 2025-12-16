@@ -8,7 +8,7 @@ const getAiClient = async () => {
   if (aiClient) return aiClient;
   try {
     const mod = await import("@google/genai");
-    const GoogleGenAI = mod.GoogleGenAI || mod.default?.GoogleGenAI || mod.default || mod;
+    const GoogleGenAI = (mod as any).GoogleGenAI || mod;
     aiClient = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
     return aiClient;
   } catch (e) {
