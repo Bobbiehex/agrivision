@@ -1,0 +1,9 @@
+{
+  "name": "AgriVision AI Platform",
+  "description": "A comprehensive AI-powered farm monitoring system integrating crop surveillance and livestock tracking using advanced computer vision and data analytics.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
