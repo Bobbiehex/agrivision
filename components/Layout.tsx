@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
+  BarChart3,
   Sprout, 
   PawPrint, 
   MessageSquareText, 
@@ -89,7 +90,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
   const navItems = [
     { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard },
-    { id: 'overview', label: t('nav_overview'), icon: LayoutDashboard },
+    { id: 'overview', label: t('nav_overview'), icon: BarChart3 },
     { id: 'crops', label: t('nav_crops'), icon: Sprout },
     { id: 'livestock', label: t('nav_livestock'), icon: PawPrint },
     { id: 'ai-advisor', label: t('nav_advisor'), icon: MessageSquareText },
@@ -219,11 +220,11 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
 
       {/* Sidebar */}
       <aside 
-        className={`fixed inset-y-0 ${dir === 'rtl' ? 'right-0' : 'left-0'} z-30 w-64 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 ${dir === 'rtl' ? 'right-0' : 'left-0'} z-30 w-64 bg-slate-900 dark:bg-slate-950 text-white transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 flex flex-col ${
           sidebarOpen ? 'translate-x-0' : (dir === 'rtl' ? 'translate-x-full' : '-translate-x-full')
         }`}
       >
-        <div className="flex items-center justify-between p-6 border-b border-slate-800">
+        <div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-slate-800">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center">
               <Sprout className="w-5 h-5 text-white" />
@@ -238,7 +239,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           </button>
         </div>
 
-        <nav className="mt-6 px-4 space-y-2">
+        <nav className="flex-1 overflow-y-auto mt-6 px-4 space-y-2 custom-scrollbar">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -259,7 +260,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           ))}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
+        <div className="flex-shrink-0 p-4 border-t border-slate-800">
           <div className="flex items-center space-x-3 px-4 py-2">
             <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
               <User size={16} />
