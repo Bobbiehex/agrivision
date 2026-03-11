@@ -18,7 +18,11 @@ import { MOCK_WEATHER } from '../constants';
 import { useLanguage } from '../context/LanguageContext';
 import { useNotifications } from '../context/NotificationContext';
 
-export const OverviewDashboard: React.FC = () => {
+interface OverviewDashboardProps {
+  farmId: string | null;
+}
+
+export const OverviewDashboard: React.FC<OverviewDashboardProps> = ({ farmId }) => {
   const { t, dir } = useLanguage();
   const { notifications } = useNotifications();
   
@@ -39,14 +43,19 @@ export const OverviewDashboard: React.FC = () => {
   });
 
   const fetchData = async () => {
+    if (!farmId) return;
     setLoading(true);
     try {
       // Parallel fetch for all dashboard data sources
-      const [weatherData, cropsData, animalsData] = await Promise.all([
+      const [weatherData, allCropsData, allAnimalsData] = await Promise.all([
         ApiService.getWeather(),
         ApiService.getCrops(),
         ApiService.getAnimals()
       ]);
+
+      // Filter by farmId
+      const cropsData = allCropsData.filter(c => c.farmId === farmId);
+      const animalsData = allAnimalsData.filter(a => a.farmId === farmId);
 
       setWeather(weatherData);
 
@@ -113,7 +122,7 @@ export const OverviewDashboard: React.FC = () => {
     // Poll every 5 minutes to keep weather and metrics fresh
     const interval = setInterval(fetchData, 300000);
     return () => clearInterval(interval);
-  }, []);
+  }, [farmId]);
 
   // Filter for priority notifications (Warning/Critical)
   const priorityNotifications = notifications

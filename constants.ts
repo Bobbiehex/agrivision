@@ -1,5 +1,32 @@
 
-import { AnimalData, CropData, HealthStatus } from "./types";
+import { AnimalData, CropData, HealthStatus, Farm } from "./types";
+
+export const MOCK_FARMS: Farm[] = [
+  {
+    id: "f1",
+    name: "Valley View Farm",
+    location: "California, USA",
+    coordinates: { lat: 36.7378, lng: -119.7871 },
+    totalArea: 150,
+    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    id: "f2",
+    name: "Green Plains Estate",
+    location: "Saskatchewan, Canada",
+    coordinates: { lat: 52.1332, lng: -106.6700 },
+    totalArea: 500,
+    image: "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=800&q=80"
+  },
+  {
+    id: "f3",
+    name: "Highland Ranch",
+    location: "New South Wales, Australia",
+    coordinates: { lat: -33.8688, lng: 151.2093 },
+    totalArea: 1200,
+    image: "https://images.unsplash.com/photo-1500595046743-cd271d694d30?auto=format&fit=crop&w=800&q=80"
+  }
+];
 
 export const MOCK_WEATHER = {
   location: "Simulated Farm",
@@ -16,6 +43,7 @@ export const MOCK_CROPS: CropData[] = [
     name: "Field Alpha - Wheat",
     type: "Wheat",
     fieldId: "F-101",
+    farmId: "f1",
     plantingDate: "2023-10-15",
     healthScore: 92,
     ndvi: 0.78,
@@ -31,13 +59,28 @@ export const MOCK_CROPS: CropData[] = [
       { date: "2024-01-05", ndvi: 0.65 },
       { date: "2024-02-01", ndvi: 0.72 },
       { date: "2024-03-01", ndvi: 0.78 }
-    ]
+    ],
+    insights: {
+      ndre: 0.65,
+      vari: 0.42,
+      growthStage: "Flowering",
+      waterStress: 15,
+      thermalStress: 10,
+      nutrientStatus: { nitrogen: 'Optimal', phosphorus: 'Optimal', potassium: 'Optimal' },
+      yieldForecast: 8.5,
+      weedDensity: 5,
+      canopyCover: 85,
+      pestPressure: 'Low',
+      diseaseRisk: 'Low'
+    },
+    location: { lat: 36.7378 + 0.005, lng: -119.7871 + 0.005 }
   },
   {
     id: "c2",
     name: "Field Beta - Corn",
     type: "Corn",
     fieldId: "F-102",
+    farmId: "f1",
     plantingDate: "2023-11-02",
     healthScore: 65,
     ndvi: 0.45,
@@ -53,13 +96,28 @@ export const MOCK_CROPS: CropData[] = [
       { date: "2024-02-05", ndvi: 0.58 }, // Dip due to stress
       { date: "2024-02-25", ndvi: 0.52 }, // Further dip
       { date: "2024-03-01", ndvi: 0.45 }
-    ]
+    ],
+    insights: {
+      ndre: 0.38,
+      vari: 0.25,
+      growthStage: "Vegetative (V8)",
+      waterStress: 65,
+      thermalStress: 40,
+      nutrientStatus: { nitrogen: 'Low', phosphorus: 'Optimal', potassium: 'Low' },
+      yieldForecast: 6.2,
+      weedDensity: 15,
+      canopyCover: 60,
+      pestPressure: 'Moderate',
+      diseaseRisk: 'Moderate'
+    },
+    location: { lat: 36.7378 - 0.005, lng: -119.7871 - 0.005 }
   },
   {
     id: "c3",
     name: "Orchard - Apples",
     type: "Apple",
     fieldId: "F-201",
+    farmId: "f2",
     plantingDate: "2020-03-10",
     healthScore: 88,
     ndvi: 0.82,
@@ -75,7 +133,21 @@ export const MOCK_CROPS: CropData[] = [
       { date: "2024-01-01", ndvi: 0.58 },
       { date: "2024-02-01", ndvi: 0.65 }, // Spring growth
       { date: "2024-03-01", ndvi: 0.82 }
-    ]
+    ],
+    insights: {
+      ndre: 0.72,
+      vari: 0.55,
+      growthStage: "Fruit Development",
+      waterStress: 10,
+      thermalStress: 5,
+      nutrientStatus: { nitrogen: 'Optimal', phosphorus: 'Optimal', potassium: 'Optimal' },
+      yieldForecast: 25.0,
+      weedDensity: 2,
+      canopyCover: 92,
+      pestPressure: 'Low',
+      diseaseRisk: 'Low'
+    },
+    location: { lat: 52.1332 + 0.01, lng: -106.6700 + 0.01 }
   }
 ];
 
@@ -86,6 +158,7 @@ const FARM_LNG = -119.7871;
 export const MOCK_ANIMALS: AnimalData[] = [
   {
     id: "a1",
+    farmId: "f1",
     species: "Cow",
     breed: "Holstein",
     tagId: "COW-882",
@@ -102,6 +175,7 @@ export const MOCK_ANIMALS: AnimalData[] = [
   },
   {
     id: "a2",
+    farmId: "f1",
     species: "Cow",
     breed: "Angus",
     tagId: "COW-891",
@@ -118,6 +192,7 @@ export const MOCK_ANIMALS: AnimalData[] = [
   },
   {
     id: "a3",
+    farmId: "f2",
     species: "Goat",
     breed: "Boer",
     tagId: "GT-102",

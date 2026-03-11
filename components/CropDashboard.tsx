@@ -17,12 +17,15 @@ import {
   Maximize2,
   Palette
 } from 'lucide-react';
+import EXIF from 'exif-js';
+import html2canvas from 'html2canvas';
 import { MOCK_CROPS } from '../constants';
-import { CropData, HealthStatus, AIAnalysisResult } from '../types';
+import { CropData, HealthStatus, AIAnalysisResult, GeoLocation } from '../types';
 import { analyzeCropImage } from '../services/geminiService';
 import { ApiService } from '../services/api';
 import { dbService } from '../services/db';
 import { ExportService } from '../services/exportService';
+import { CropInsightsPanel } from './CropInsightsPanel';
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -32,13 +35,19 @@ type NdviColorScheme = 'RG' | 'SPECTRAL' | 'DIVERGING';
 
 interface CropDashboardProps {
   initialCropId?: string;
+  farmId: string | null;
 }
 
-export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) => {
+export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId, farmId }) => {
   const { addNotification } = useNotifications();
   const { t, dir } = useLanguage();
   const [selectedCrop, setSelectedCrop] = useState<CropData | null>(null);
-  const [crops, setCrops] = useState<CropData[]>(MOCK_CROPS);
+  const [allCrops, setAllCrops] = useState<CropData[]>(MOCK_CROPS);
+  
+  const crops = useMemo(() => {
+    if (!farmId) return [];
+    return allCrops.filter(c => c.farmId === farmId);
+  }, [allCrops, farmId]);
   
   // Single Plant/Leaf Analysis State
   const [analysisImage, setAnalysisImage] = useState<string | null>(null);
@@ -50,16 +59,20 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
   const [overlayType, setOverlayType] = useState<OverlayType>('NONE');
   const [overlayOpacity, setOverlayOpacity] = useState(0.7);
   const [ndviColorScheme, setNdviColorScheme] = useState<NdviColorScheme>('RG');
+  const [reports, setReports] = useState<any[]>([]);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const mapInputRef = useRef<HTMLInputElement>(null);
-  
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // NDVI Configuration State
   const [warningThreshold, setWarningThreshold] = useState(0.4);
   const [healthyThreshold, setHealthyThreshold] = useState(0.7);
   
   // Chart Interaction State
   const [draggingThreshold, setDraggingThreshold] = useState<'healthy' | 'warning' | null>(null);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load saved map from DB on mount
   useEffect(() => {
@@ -74,7 +87,17 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
         }
     };
     loadSavedMap();
+    loadReports();
   }, []);
+
+  const loadReports = async () => {
+    try {
+        const data = await dbService.getAllReports();
+        setReports(data.reverse()); // Newest first
+    } catch (e) {
+        console.error("Failed to load reports", e);
+    }
+  };
 
   // Set default selected crop or handle deep link
   useEffect(() => {
@@ -97,7 +120,7 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
     // Poll for live crop data
     const interval = setInterval(async () => {
       const data = await ApiService.getCrops();
-      setCrops(data);
+      setAllCrops(data);
       // Update selected crop if it exists in the new data
       if (selectedCrop) {
         const updated = data.find(c => c.id === selectedCrop.id);
@@ -191,6 +214,41 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
   const handleMapUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Extract GPS Data
+      EXIF.getData(file as any, function(this: any) {
+        const lat = EXIF.getTag(this, "GPSLatitude");
+        const latRef = EXIF.getTag(this, "GPSLatitudeRef");
+        const lon = EXIF.getTag(this, "GPSLongitude");
+        const lonRef = EXIF.getTag(this, "GPSLongitudeRef");
+
+        if (lat && lon) {
+          const convertToDecimal = (gps: any, ref: string) => {
+            const d = gps[0].numerator / gps[0].denominator;
+            const m = gps[1].numerator / gps[1].denominator;
+            const s = gps[2].numerator / gps[2].denominator;
+            let res = d + (m / 60) + (s / 3600);
+            if (ref === 'S' || ref === 'W') res = -res;
+            return res;
+          };
+
+          const latitude = convertToDecimal(lat, latRef);
+          const longitude = convertToDecimal(lon, lonRef);
+
+          addNotification({
+            title: 'GPS Metadata Found',
+            message: `Location extracted: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+            type: 'SUCCESS'
+          });
+          
+          // In a real app, we'd update the crop location in the DB here
+          if (selectedCrop) {
+            const updatedCrop = { ...selectedCrop, location: { lat: latitude, lng: longitude } };
+            setSelectedCrop(updatedCrop);
+            dbService.updateCrop(updatedCrop);
+          }
+        }
+      });
+
       const reader = new FileReader();
       reader.onloadend = async () => {
         const result = reader.result as string;
@@ -261,10 +319,42 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
     addNotification({ title: 'Data Exported', message: 'Field data downloaded as CSV.', type: 'INFO' });
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (analysisResult && analysisImage) {
-        ExportService.generateAnalysisPDF(analysisResult, analysisImage, `Crop Analysis: ${analysisResult.detectedSubject}`);
+        await ExportService.generateAnalysisPDF(analysisResult, analysisImage, `Crop Analysis: ${analysisResult.detectedSubject}`);
         addNotification({ title: 'Report Downloaded', message: 'PDF Analysis report generated.', type: 'SUCCESS' });
+        loadReports();
+    }
+  };
+
+  const handleGenerateFieldReport = async () => {
+    if (!selectedCrop) return;
+    setGeneratingReport(true);
+    addNotification({ title: 'Generating Report', message: 'Capturing field data and map...', type: 'INFO' });
+    
+    try {
+        await ExportService.generateFieldReportPDF(
+            selectedCrop, 
+            mapContainerRef.current, 
+            chartContainerRef.current
+        );
+        addNotification({ title: 'Report Ready', message: 'Full field report downloaded.', type: 'SUCCESS' });
+        loadReports();
+    } catch (e) {
+        console.error("Report generation failed", e);
+        addNotification({ title: 'Report Failed', message: 'Could not generate field report.', type: 'WARNING' });
+    } finally {
+        setGeneratingReport(false);
+    }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    try {
+        await dbService.deleteReport(id);
+        addNotification({ title: 'Report Deleted', message: 'Historical report removed.', type: 'INFO' });
+        loadReports();
+    } catch (e) {
+        console.error("Delete failed", e);
     }
   };
 
@@ -327,17 +417,25 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
         </div>
         <div className="flex space-x-3 mt-4 md:mt-0">
             <button 
+                onClick={handleGenerateFieldReport}
+                disabled={generatingReport || !selectedCrop}
+                className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+            >
+                {generatingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                <span>{t('generate_field_report')}</span>
+            </button>
+            <button 
                 onClick={handleExportData}
                 className="flex items-center space-x-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors"
             >
-                <FileText size={16} />
+                <Download size={16} />
                 <span>{t('export_csv')}</span>
             </button>
         </div>
       </div>
 
       {/* DRONE MAP & HEATMAP ANALYSIS */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+      <div ref={mapContainerRef} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-2">
                 <Map className="text-indigo-600 dark:text-indigo-400" size={20} />
@@ -401,6 +499,22 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
                     title="Upload Drone Map"
                 >
                     <Upload size={20} />
+                </button>
+                <button 
+                    onClick={async () => {
+                        if (mapContainerRef.current) {
+                            const canvas = await html2canvas(mapContainerRef.current);
+                            const link = document.createElement('a');
+                            link.download = `Field_Map_${Date.now()}.png`;
+                            link.href = canvas.toDataURL();
+                            link.click();
+                            addNotification({ title: 'Map Saved', message: 'Field map image downloaded.', type: 'SUCCESS' });
+                        }
+                    }}
+                    className="p-2 bg-white/90 backdrop-blur hover:bg-white text-slate-700 rounded-lg shadow-lg transition-all"
+                    title="Download Current View"
+                >
+                    <Download size={20} />
                 </button>
                 <input 
                     type="file" 
@@ -564,6 +678,9 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
         </div>
       </div>
 
+      {/* KEY INSIGHTS & REPORTS SECTION */}
+      {selectedCrop && <CropInsightsPanel crop={selectedCrop} />}
+
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
@@ -720,6 +837,9 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
             </div>
           </div>
 
+          {/* Key Insights & Reports */}
+          {selectedCrop && <CropInsightsPanel crop={selectedCrop} />}
+
           {/* Charts Section */}
           <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
             <h3 className="font-semibold text-slate-800 dark:text-white mb-6">{t('growth_trends')} ({selectedCrop ? selectedCrop.name : 'Select a field'})</h3>
@@ -771,6 +891,150 @@ export const CropDashboard: React.FC<CropDashboardProps> = ({ initialCropId }) =
               </div>
             </div>
           </div>
+
+          {/* Historical Reports Section */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+              <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                <FileText className="text-blue-500" size={18} />
+                {t('history_reports')}
+              </h3>
+            </div>
+            <div className="p-4">
+              {reports.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 italic text-sm">
+                  {t('no_reports')}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reports.map((report) => (
+                    <div 
+                      key={report.id} 
+                      className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${report.type === 'FIELD_SUMMARY' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                          <FileText size={16} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{report.title}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                            {report.type === 'FIELD_SUMMARY' ? t('report_type_field') : t('report_type_analysis')} • {new Date(report.timestamp).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setSelectedReport(report)}
+                          className="px-3 py-1 text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
+                        >
+                          {t('view_report')}
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteReport(report.id)}
+                          className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                          title={t('delete_report')}
+                        >
+                          <CheckCircle size={16} className="opacity-0" /> {/* Spacer */}
+                          <span className="text-xs font-medium">{t('delete_report')}</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Report Viewer Modal */}
+          {selectedReport && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+              <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
+                  <h3 className="font-bold text-slate-900 dark:text-white">{selectedReport.title}</h3>
+                  <button 
+                    onClick={() => setSelectedReport(null)}
+                    className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                  >
+                    <CheckCircle size={20} className="opacity-0" /> {/* Spacer */}
+                    <span className="text-xl font-bold">&times;</span>
+                  </button>
+                </div>
+                <div className="p-6 overflow-y-auto space-y-6">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-500 dark:text-slate-400">{new Date(selectedReport.timestamp).toLocaleString()}</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${selectedReport.type === 'FIELD_SUMMARY' ? 'bg-emerald-100 text-emerald-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {selectedReport.type === 'FIELD_SUMMARY' ? t('report_type_field') : t('report_type_analysis')}
+                    </span>
+                  </div>
+
+                  {selectedReport.imageBase64 && (
+                    <img src={selectedReport.imageBase64} alt="Report" className="w-full rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm" />
+                  )}
+
+                  <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white mb-2">Summary</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{selectedReport.summary}</p>
+                  </div>
+
+                  {selectedReport.type === 'CROP_ANALYSIS' && selectedReport.details && (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Issues Detected</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedReport.details.issues.map((issue: string, i: number) => (
+                            <span key={i} className="px-2 py-1 bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-xs rounded border border-rose-100 dark:border-rose-800">
+                              {issue}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-400 uppercase mb-2">Recommendations</p>
+                        <ul className="space-y-2">
+                          {selectedReport.details.recommendations.map((rec: string, i: number) => (
+                            <li key={i} className="text-sm flex gap-2 text-slate-700 dark:text-slate-300">
+                              <CheckCircle size={14} className="text-emerald-500 mt-1 flex-shrink-0" />
+                              {rec}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedReport.type === 'FIELD_SUMMARY' && selectedReport.details && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600">
+                        <p className="text-[10px] text-slate-400 uppercase font-bold">NDVI</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.details.ndvi}</p>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600">
+                        <p className="text-[10px] text-slate-400 uppercase font-bold">Moisture</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.details.soilMoisture}%</p>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600">
+                        <p className="text-[10px] text-slate-400 uppercase font-bold">Status</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.details.status}</p>
+                      </div>
+                      <div className="p-3 bg-white dark:bg-slate-700 rounded-lg border border-slate-100 dark:border-slate-600">
+                        <p className="text-[10px] text-slate-400 uppercase font-bold">Type</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">{selectedReport.details.type}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+                  <button 
+                    onClick={() => setSelectedReport(null)}
+                    className="px-6 py-2 bg-slate-900 dark:bg-slate-700 text-white rounded-xl font-bold hover:bg-slate-800 transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

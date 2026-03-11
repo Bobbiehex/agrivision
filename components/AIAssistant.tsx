@@ -6,7 +6,11 @@ import { ChatMessage } from '../types';
 import { dbService } from '../services/db';
 import { useLanguage } from '../context/LanguageContext';
 
-export const AIAssistant: React.FC = () => {
+interface AIAssistantProps {
+  farmId: string | null;
+}
+
+export const AIAssistant: React.FC<AIAssistantProps> = ({ farmId }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -17,16 +21,7 @@ export const AIAssistant: React.FC = () => {
 
   // Initialize session on language change
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const sess = await createChatSession(language);
-        if (mounted) chatSessionRef.current = sess;
-      } catch (e) {
-        console.warn('Failed to initialize chat session', e);
-      }
-    })();
-    return () => { mounted = false; };
+    chatSessionRef.current = createChatSession(language);
   }, [language]);
 
   // Load history from DB
@@ -82,10 +77,10 @@ export const AIAssistant: React.FC = () => {
     await dbService.saveChatMessage(userMsg);
 
     try {
-        if (!chatSessionRef.current) {
-          chatSessionRef.current = await createChatSession(language);
-        }
-        const responseText = await sendChatMessage(chatSessionRef.current, userMsg.text);
+      if (!chatSessionRef.current) {
+          chatSessionRef.current = createChatSession(language);
+      }
+      const responseText = await sendChatMessage(chatSessionRef.current, userMsg.text);
       const botMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'model',

@@ -1,7 +1,7 @@
 
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { ChatMessage, CropData, AnimalData } from '../types';
-import { MOCK_CROPS, MOCK_ANIMALS } from '../constants';
+import { ChatMessage, CropData, AnimalData, Report, Farm } from '../types';
+import { MOCK_CROPS, MOCK_ANIMALS, MOCK_FARMS } from '../constants';
 
 interface AgriDB extends DBSchema {
   chats: {
@@ -26,21 +26,30 @@ interface AgriDB extends DBSchema {
     key: string;
     value: AnimalData;
   };
+  farms: {
+    key: string;
+    value: Farm;
+  };
   settings: {
     key: string;
     value: any;
   };
+  reports: {
+    key: string;
+    value: Report;
+    indexes: { 'by-timestamp': number };
+  };
 }
 
 const DB_NAME = 'agrivision-db';
-const DB_VERSION = 1;
+const DB_VERSION = 3; // Incremented version
 
 class DatabaseService {
   private dbPromise: Promise<IDBPDatabase<AgriDB>>;
 
   constructor() {
     this.dbPromise = openDB<AgriDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion) {
         // Chat Store
         if (!db.objectStoreNames.contains('chats')) {
           const chatStore = db.createObjectStore('chats', { keyPath: 'id' });
@@ -69,6 +78,18 @@ class DatabaseService {
         // Settings Store
         if (!db.objectStoreNames.contains('settings')) {
           db.createObjectStore('settings', { keyPath: 'key' });
+        }
+
+        // Reports Store
+        if (!db.objectStoreNames.contains('reports')) {
+          const reportStore = db.createObjectStore('reports', { keyPath: 'id' });
+          reportStore.createIndex('by-timestamp', 'timestamp');
+        }
+
+        // Farms Store
+        if (!db.objectStoreNames.contains('farms')) {
+          const farmStore = db.createObjectStore('farms', { keyPath: 'id' });
+          MOCK_FARMS.forEach(farm => farmStore.put(farm));
         }
       },
     });
@@ -125,6 +146,40 @@ class DatabaseService {
   async updateAnimal(animal: AnimalData) {
     const db = await this.dbPromise;
     await db.put('animals', animal);
+  }
+
+  // --- Report Operations ---
+  async saveReport(report: Report) {
+    const db = await this.dbPromise;
+    await db.put('reports', report);
+  }
+
+  async getAllReports(): Promise<Report[]> {
+    const db = await this.dbPromise;
+    return await db.getAllFromIndex('reports', 'by-timestamp');
+  }
+
+  async deleteReport(id: string) {
+    const db = await this.dbPromise;
+    await db.delete('reports', id);
+  }
+
+  // --- Farm Operations ---
+  async getAllFarms(): Promise<Farm[]> {
+    const db = await this.dbPromise;
+    const farms = await db.getAll('farms');
+    if (farms.length === 0) return MOCK_FARMS;
+    return farms;
+  }
+
+  async updateFarm(farm: Farm) {
+    const db = await this.dbPromise;
+    await db.put('farms', farm);
+  }
+
+  async getFarm(id: string): Promise<Farm | undefined> {
+    const db = await this.dbPromise;
+    return await db.get('farms', id);
   }
 }
 

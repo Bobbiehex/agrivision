@@ -16,7 +16,8 @@ import {
   Info,
   CheckCircle,
   XCircle,
-  ChevronRight
+  ChevronRight,
+  BookOpen
 } from 'lucide-react';
 import { useNotifications, Toast } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -28,6 +29,7 @@ interface LayoutProps {
   children: React.ReactNode;
   currentPage: string;
   onNavigate: (page: string, params?: any) => void;
+  headerExtra?: React.ReactNode;
 }
 
 interface SearchResult {
@@ -71,7 +73,7 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
   );
 };
 
-export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, headerExtra }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
@@ -90,6 +92,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
     { id: 'crops', label: t('nav_crops'), icon: Sprout },
     { id: 'livestock', label: t('nav_livestock'), icon: PawPrint },
     { id: 'ai-advisor', label: t('nav_advisor'), icon: MessageSquareText },
+    { id: 'about', label: t('nav_about'), icon: Info },
+    { id: 'blog', label: t('nav_blog'), icon: BookOpen },
     { id: 'settings', label: t('nav_settings'), icon: Settings },
   ];
 
@@ -279,8 +283,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           </button>
 
           {/* Search Bar - Visible on Mobile and Desktop */}
-          <div className={`flex-1 mx-2 lg:mx-6 max-w-xl`} ref={searchContainerRef}>
-            <div className="relative">
+          <div className="flex items-center flex-1 mx-2 lg:mx-6 max-w-2xl gap-4">
+            {headerExtra}
+            <div className="flex-1 relative" ref={searchContainerRef}>
               <Search className={`absolute top-1/2 -translate-y-1/2 text-slate-400 ${dir === 'rtl' ? 'right-3' : 'left-3'}`} size={18} />
               <input 
                 type="text"

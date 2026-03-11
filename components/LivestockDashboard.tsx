@@ -34,6 +34,7 @@ import { AnimalData, HealthStatus, AIAnalysisResult, GeoLocation } from '../type
 import { analyzeLivestockFrame } from '../services/geminiService';
 import { ApiService } from '../services/api';
 import { ExportService } from '../services/exportService';
+import { dbService } from '../services/db';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNotifications } from '../context/NotificationContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -66,6 +67,7 @@ interface TrackedObject {
 
 interface LivestockDashboardProps {
     initialAnimalId?: string;
+    farmId: string | null;
 }
 
 // Internal Component: Individual Live Animal Feed
@@ -371,18 +373,27 @@ const LiveAnimalFeed: React.FC<{
   );
 };
 
-export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialAnimalId }) => {
+export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialAnimalId, farmId }) => {
   const { addNotification } = useNotifications();
   const { t } = useLanguage();
   
   // -- State --
-  const [animals, setAnimals] = useState<ExtendedAnimalData[]>([]);
+  const [allAnimals, setAllAnimals] = useState<ExtendedAnimalData[]>([]);
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
+  
+  const animals = useMemo(() => {
+    if (!farmId) return [];
+    return allAnimals.filter(a => a.farmId === farmId);
+  }, [allAnimals, farmId]);
   
   // UI State
   const [viewMode, setViewMode] = useState<'NORMAL' | 'THERMAL' | 'MAP'>('NORMAL');
   const [analysisResults, setAnalysisResults] = useState<Record<string, AIAnalysisResult>>({});
   const [refreshDevicesTrigger, setRefreshDevicesTrigger] = useState(0);
+  const [reports, setReports] = useState<any[]>([]);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
 
   // Vet Analysis State
   const [vetImage, setVetImage] = useState<string | null>(null);
@@ -407,6 +418,7 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
 
   // -- Initialization --
   useEffect(() => {
+    loadReports();
     // Load devices
     const getDevices = async () => {
         try {
@@ -423,21 +435,26 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
     };
     getDevices();
 
-    // Load saved slots
-    const saved = localStorage.getItem('livestock_slots');
-    if (saved) {
+    // Load saved slots from DB
+    const loadSlots = async () => {
         try {
-            setAnimals(JSON.parse(saved));
+            const saved = await dbService.getAllAnimals();
+            setAllAnimals(saved.map(a => ({ ...a, isConfigured: !!(a as any).deviceId })));
         } catch (e) {
             console.error("Failed to load slots", e);
         }
-    }
+    };
+    loadSlots();
   }, [refreshDevicesTrigger]);
 
   // Save slots on change
   useEffect(() => {
-      localStorage.setItem('livestock_slots', JSON.stringify(animals));
-  }, [animals]);
+      if (allAnimals.length > 0) {
+          allAnimals.forEach(a => {
+              dbService.updateAnimal(a);
+          });
+      }
+  }, [allAnimals]);
 
   // Scroll to initial animal if ID matches
   useEffect(() => {
@@ -456,12 +473,14 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
   // -- Handlers --
 
   const handleAddSlot = () => {
+      if (!farmId) return;
       // Simulate some history for new slots for demonstration
       const startLat = FARM_CENTER.lat + (Math.random() - 0.5) * 0.002;
       const startLng = FARM_CENTER.lng + (Math.random() - 0.5) * 0.002;
       
       const newSlot: ExtendedAnimalData = {
           id: Date.now().toString(),
+          farmId: farmId,
           tagId: 'New Slot',
           species: 'Unknown',
           ageMonths: 0,
@@ -479,12 +498,12 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
           ],
           isConfigured: false
       };
-      setAnimals(prev => [...prev, newSlot]);
+      setAllAnimals(prev => [...prev, newSlot]);
   };
 
   const handleDeleteSlot = (id: string) => {
       if (confirm("Are you sure you want to remove this camera slot?")) {
-        setAnimals(prev => prev.filter(a => a.id !== id));
+        setAllAnimals(prev => prev.filter(a => a.id !== id));
         addNotification({ title: 'Slot Removed', message: 'Camera slot deleted.', type: 'INFO' });
       }
   };
@@ -501,11 +520,10 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
       // Trigger device refresh when opening config to ensure latest list
       setRefreshDevicesTrigger(prev => prev + 1);
   };
-
   const saveConfig = () => {
       if (!configuringId) return;
       
-      setAnimals(prev => prev.map(a => {
+      setAllAnimals(prev => prev.map(a => {
           if (a.id === configuringId) {
               return {
                   ...a,
@@ -532,18 +550,18 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
      setAnalysisResults(prev => ({ ...prev, [id]: result }));
      
      // Update the animal state with AI derived data
-     setAnimals(prev => prev.map(a => {
+     setAllAnimals(prev => prev.map(a => {
          if (a.id === id) {
              let newStatus = HealthStatus.HEALTHY;
              if (result.condition.toLowerCase().includes('warning')) newStatus = HealthStatus.WARNING;
              if (result.condition.toLowerCase().includes('critical')) newStatus = HealthStatus.CRITICAL;
-
+ 
              // Extract species/breed from AI if valid
              let derivedBreed = a.manualBreed;
              if (result.detectedSubject && result.detectedSubject !== 'Unknown Animal' && result.confidence > 70) {
                  derivedBreed = result.detectedSubject; // e.g. "Holstein Cow"
              }
-
+ 
              return {
                  ...a,
                  status: newStatus,
@@ -557,8 +575,28 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
      }));
   };
 
+
   const handleFeedError = (id: string, error: string) => {
      addNotification({ title: 'Camera Error', message: error, type: 'WARNING' });
+  };
+
+  const loadReports = async () => {
+    try {
+        const data = await dbService.getAllReports();
+        setReports(data.filter((r: any) => r.type === 'LIVESTOCK_SUMMARY' || (r.type === 'CROP_ANALYSIS' && r.title.includes('Veterinary'))).reverse());
+    } catch (e) {
+        console.error("Failed to load reports", e);
+    }
+  };
+
+  const handleDeleteReport = async (id: string) => {
+    try {
+        await dbService.deleteReport(id);
+        addNotification({ title: 'Report Deleted', message: 'Historical report removed.', type: 'INFO' });
+        loadReports();
+    } catch (e) {
+        console.error("Delete failed", e);
+    }
   };
 
   const handleExportData = () => {
@@ -634,10 +672,11 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
     }
   };
 
-  const handleDownloadVetReport = () => {
+  const handleDownloadVetReport = async () => {
     if (vetResult && vetImage) {
-        ExportService.generateAnalysisPDF(vetResult, vetImage, `Veterinary Diagnosis: ${vetResult.detectedSubject}`);
+        await ExportService.generateAnalysisPDF(vetResult, vetImage, `Veterinary Diagnosis: ${vetResult.detectedSubject}`);
         addNotification({ title: 'Report Downloaded', message: 'PDF Veterinary report generated.', type: 'SUCCESS' });
+        loadReports();
     }
   };
 
@@ -736,7 +775,7 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
   }, [animals]);
 
   return (
-    <div className="space-y-6 relative pb-20">
+    <div ref={dashboardRef} className="space-y-6 relative pb-20">
       
       {/* Configuration Modal */}
       {configuringId && (
@@ -826,6 +865,30 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
              </button>
              <button onClick={handleAddSlot} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-sm transition-colors text-sm">
                 <Plus size={16} /> Add Camera
+            </button>
+            <button 
+                onClick={async () => {
+                    setGeneratingReport(true);
+                    addNotification({ title: 'Generating Report', message: 'Capturing herd data...', type: 'INFO' });
+                    try {
+                        await ExportService.generateFieldReportPDF(
+                            { name: 'Livestock Herd', type: 'Herd Summary', fieldId: 'HERD-01' } as any,
+                            dashboardRef.current,
+                            chartRef.current
+                        );
+                        addNotification({ title: 'Report Ready', message: 'Herd summary report downloaded.', type: 'SUCCESS' });
+                        loadReports();
+                    } catch (e) {
+                        console.error("Report failed", e);
+                    } finally {
+                        setGeneratingReport(false);
+                    }
+                }}
+                disabled={generatingReport}
+                className="flex items-center space-x-2 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm font-medium hover:bg-slate-900 disabled:opacity-50 transition-colors shadow-sm"
+            >
+                {generatingReport ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+                <span>Report</span>
             </button>
             <button onClick={handleExportData} className="p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700">
                 <FileText size={18} />
@@ -1075,8 +1138,56 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
                       </div>
                   </div>
               </div>
+
+              {/* Historical Reports Section */}
+              <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
+                <div className="p-4 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 flex justify-between items-center">
+                  <h3 className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+                    <FileText className="text-blue-500" size={18} />
+                    {t('history_reports')}
+                  </h3>
+                </div>
+                <div className="p-4">
+                  {reports.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 italic text-sm">
+                      {t('no_reports')}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {reports.map((report) => (
+                        <div 
+                          key={report.id} 
+                          className="flex items-center justify-between p-3 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${report.type === 'LIVESTOCK_SUMMARY' ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}>
+                              <FileText size={16} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{report.title}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">
+                                {new Date(report.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleDeleteReport(report.id)}
+                              className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+                              title={t('delete_report')}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="md:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 h-48">
                   <h3 className="font-bold text-slate-800 dark:text-white mb-2">Health Distribution (Active Slots)</h3>
+                   <div className="h-full w-full" ref={chartRef}>
                    <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={healthData}>
                             <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} stroke="#94a3b8" />
@@ -1087,6 +1198,7 @@ export const LivestockDashboard: React.FC<LivestockDashboardProps> = ({ initialA
                             <Bar dataKey="score" fill="#10b981" radius={[4, 4, 0, 0]} barSize={30} />
                         </BarChart>
                     </ResponsiveContainer>
+                  </div>
               </div>
           </div>
       )}

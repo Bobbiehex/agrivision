@@ -1,30 +1,9 @@
 
-import type { GenerateContentResponse, Chat } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Chat } from "@google/genai";
 import { AIAnalysisResult } from "../types";
 
-// Lazily initialize Gemini client only when needed (avoid bundling Node-only SDK into browser)
-let aiClient: any = null;
-const getAiClient = async () => {
-  if (aiClient) return aiClient;
-  try {
-    const mod = await import("@google/genai");
-    const GoogleGenAI = (mod as any).GoogleGenAI || mod;
-    aiClient = new GoogleGenAI({ apiKey: (process.env as any).API_KEY });
-    return aiClient;
-  } catch (e) {
-    console.warn("Could not load @google/genai in the browser environment, falling back to stubbed behavior", e);
-    // Provide a minimal stub that throws on use so callers can handle errors gracefully
-    aiClient = {
-      models: {
-        generateContent: async () => ({ text: '{}' })
-      },
-      chats: {
-        create: () => ({ sendMessage: async () => ({ text: "AI service not available in this environment." }) })
-      }
-    };
-    return aiClient;
-  }
-};
+// Initialize Gemini Client
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || process.env.API_KEY || '' });
 
 /**
  * Helper to parse markdown JSON code blocks often returned by LLMs
@@ -66,7 +45,6 @@ export const analyzeCropImage = async (base64Image: string): Promise<AIAnalysisR
       Do not add any markdown formatting outside the JSON.
     `;
 
-    const ai = await getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash', // Optimized for multimodal analysis
       contents: {
@@ -134,7 +112,6 @@ export const analyzeLivestockFrame = async (base64Image: string, detectedHints?:
       Do not add any markdown formatting outside the JSON.
     `;
 
-    const ai = await getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
@@ -174,8 +151,7 @@ export const analyzeLivestockFrame = async (base64Image: string, detectedHints?:
   }
 };
 
-export const createChatSession = async (language: string = 'english'): Promise<Chat> => {
-  const ai = await getAiClient();
+export const createChatSession = (language: string = 'english'): Chat => {
   return ai.chats.create({
     model: 'gemini-2.5-flash',
     config: {

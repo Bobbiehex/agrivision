@@ -9,7 +9,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Fix: Define API_KEY specifically to avoid overwriting the entire process.env object which breaks React
-      'process.env.API_KEY': JSON.stringify(env.API_KEY)
+      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.VITE_OPEN_WEATHER_API_KEY': JSON.stringify(env.VITE_OPEN_WEATHER_API_KEY)
     }
   }
 })

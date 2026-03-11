@@ -1,11 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { translations, Language } from '../translations';
+import { translations, Language, TranslationKeys } from '../translations';
 
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: keyof typeof translations['en']) => string;
+  t: (key: keyof TranslationKeys) => string;
   dir: 'ltr' | 'rtl';
 }
 
@@ -35,7 +35,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   }, [language]);
 
-  const t = (key: keyof typeof translations['en']): string => {
+  const t = (key: keyof TranslationKeys): string => {
     return translations[language][key] || translations['en'][key] || key;
   };
 
