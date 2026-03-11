@@ -5,6 +5,7 @@ import { OverviewDashboard } from './components/OverviewDashboard';
 import { CropDashboard } from './components/CropDashboard';
 import { LivestockDashboard } from './components/LivestockDashboard';
 import { AIAssistant } from './components/AIAssistant';
+import { DashboardPage } from './components/DashboardPage';
 import { AboutPage } from './components/AboutPage';
 import { BlogPage } from './components/BlogPage';
 import { SettingsPage } from './components/SettingsPage';
@@ -15,7 +16,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { dbService } from './services/db';
 
 const App: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState('overview');
+  const [currentPage, setCurrentPage] = useState('dashboard');
   const [navParams, setNavParams] = useState<any>(null);
   const [selectedFarmId, setSelectedFarmId] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ const App: React.FC = () => {
 
   const renderPage = () => {
     switch (currentPage) {
+      case 'dashboard': return <DashboardPage />;
       case 'overview': return <OverviewDashboard farmId={selectedFarmId} />;
       case 'crops': return <CropDashboard initialCropId={navParams?.id} farmId={selectedFarmId} />;
       case 'livestock': return <LivestockDashboard initialAnimalId={navParams?.id} farmId={selectedFarmId} />;
@@ -43,7 +45,7 @@ const App: React.FC = () => {
       case 'about': return <AboutPage />;
       case 'blog': return <BlogPage />;
       case 'settings': return <SettingsPage />;
-      default: return <OverviewDashboard farmId={selectedFarmId} />;
+      default: return <DashboardPage />;
     }
   };
 

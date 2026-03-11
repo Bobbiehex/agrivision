@@ -6,6 +6,7 @@ export interface TranslationKeys {
   welcome: string;
   updated: string;
   nav_overview: string;
+  nav_dashboard: string;
   nav_crops: string;
   nav_livestock: string;
   nav_advisor: string;
@@ -107,6 +108,7 @@ export const translations: Record<Language, TranslationKeys> = {
     
     // Navigation
     nav_overview: "Overview",
+    nav_dashboard: "Dashboard",
     nav_crops: "Crop Monitor",
     nav_livestock: "Livestock",
     nav_advisor: "AI Advisor",
@@ -218,6 +220,7 @@ export const translations: Record<Language, TranslationKeys> = {
     updated: "تم التحديث",
 
     nav_overview: "نظرة عامة",
+    nav_dashboard: "لوحة القيادة",
     nav_crops: "مراقبة المحاصيل",
     nav_livestock: "الماشية",
     nav_advisor: "المستشار الذكي",
@@ -324,6 +327,7 @@ export const translations: Record<Language, TranslationKeys> = {
     updated: "Aktualisiert",
 
     nav_overview: "Übersicht",
+    nav_dashboard: "Dashboard",
     nav_crops: "Pflanzenüberwachung",
     nav_livestock: "Viehbestand",
     nav_advisor: "KI-Berater",
@@ -430,6 +434,7 @@ export const translations: Record<Language, TranslationKeys> = {
     updated: "Actualizado",
 
     nav_overview: "Resumen",
+    nav_dashboard: "Tablero",
     nav_crops: "Cultivos",
     nav_livestock: "Ganado",
     nav_advisor: "Asesor IA",

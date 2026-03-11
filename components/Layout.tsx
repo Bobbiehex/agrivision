@@ -88,6 +88,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const navItems = [
+    { id: 'dashboard', label: t('nav_dashboard'), icon: LayoutDashboard },
     { id: 'overview', label: t('nav_overview'), icon: LayoutDashboard },
     { id: 'crops', label: t('nav_crops'), icon: Sprout },
     { id: 'livestock', label: t('nav_livestock'), icon: PawPrint },

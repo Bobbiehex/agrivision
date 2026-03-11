@@ -50,7 +50,7 @@ export const AboutPage: React.FC = () => {
         <div className="md:flex">
           <div className="md:w-1/3">
             <img 
-              src="/manager.png" 
+              src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80" 
               alt="Managing Director" 
               className="w-full h-full object-cover min-h-[300px]"
               referrerPolicy="no-referrer"
