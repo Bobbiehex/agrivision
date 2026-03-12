@@ -45,35 +45,80 @@ export const AboutPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Leadership Section */}
-      <section className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden">
-        <div className="md:flex">
-          <div className="md:w-1/3">
-            <img 
-              src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=800&q=80" 
-              alt="Managing Director" 
-              className="w-full h-full object-cover min-h-[300px]"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <div className="md:w-2/3 p-8 flex flex-col justify-center space-y-4">
-            <div>
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Managing Director</h3>
-              <p className="text-emerald-600 dark:text-emerald-400 font-medium">Leadership & Strategy</p>
+      {/* Team Section */}
+      <section className="space-y-8">
+        <h2 className="text-3xl font-bold text-center text-slate-900 dark:text-white mb-8">Leadership & Engineering</h2>
+        
+        {/* Managing Director */}
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-lg shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-700 overflow-hidden transform transition-all hover:-translate-y-1 duration-300">
+          <div className="md:flex">
+            <div className="md:w-1/3 relative">
+              <img 
+                src="manager.png"
+                alt="Managing Director" 
+                className="w-full h-full object-cover min-h-[300px]"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent md:bg-gradient-to-r"></div>
             </div>
-            <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-              Leading the bridge between traditional agricultural wisdom and cutting-edge aerial intelligence. 
-              Our commitment is to provide tools that respect the heritage of the land while embracing the 
-              efficiency of the future.
-            </p>
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4">
-              <a 
-                href="mailto:info@cleofly.eu" 
-                className="flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-emerald-600 transition-colors"
-              >
-                <Mail size={18} />
-                <span>info@cleofly.eu</span>
-              </a>
+            <div className="md:w-2/3 p-8 flex flex-col justify-center space-y-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Managing Director</h3>
+                <p className="text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider text-sm mt-1">Leadership & Strategy</p>
+              </div>
+              <p className="text-slate-600 dark:text-slate-400 leading-relaxed text-lg">
+                Leading the bridge between traditional agricultural wisdom and cutting-edge aerial intelligence. 
+                Our commitment is to provide tools that respect the heritage of the land while embracing the 
+                efficiency of the future.
+              </p>
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-700 flex items-center gap-4">
+                <a 
+                  href="mailto:info@cleofly.eu" 
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all font-medium"
+                >
+                  <Mail size={18} />
+                  <span>info@cleofly.eu</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Full Stack Developer */}
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl shadow-xl border border-slate-700 overflow-hidden transform transition-all hover:-translate-y-1 duration-300 text-white">
+          <div className="md:flex flex-row-reverse">
+            <div className="md:w-1/3 relative">
+              <img 
+                src="me.png"
+                alt="Full Stack Developer" 
+                className="w-full h-full object-cover min-h-[300px]"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent md:bg-gradient-to-l"></div>
+            </div>
+            <div className="md:w-2/3 p-8 flex flex-col justify-center space-y-4">
+              <div>
+                <h3 className="text-2xl font-bold text-white">Full Stack Developer</h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-lg text-xs font-bold uppercase tracking-wider border border-indigo-500/30">Engineering</span>
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 rounded-lg text-xs font-bold uppercase tracking-wider border border-emerald-500/30">UI/UX</span>
+                </div>
+              </div>
+              <p className="text-slate-300 leading-relaxed text-lg">
+                Architecting the digital foundation behind our agricultural intelligence. Passionate about 
+                crafting beautiful, high-performance interfaces that transform complex drone data into 
+                intuitive, actionable insights for farmers worldwide.
+              </p>
+              <div className="pt-6 border-t border-slate-700 flex items-center gap-4">
+                <a 
+                  href="https://ayomide-port.vercel.app" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-slate-200 transition-all font-medium border border-white/5"
+                >
+                  <Globe size={18} />
+                  <span>View Portfolio</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>

@@ -40,6 +40,33 @@ const MOCK_POSTS: BlogPost[] = [
     author: 'EcoFarmer',
     image: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=800&q=80',
     category: 'Sustainability'
+  },
+  {
+    id: '4',
+    title: 'AI-Driven Yield Forecasting: Predicting the Unpredictable',
+    excerpt: 'Leveraging machine learning models and historical meteorological data to accurately forecast crop yields months before harvest time.',
+    date: 'February 15, 2026',
+    author: 'DataScientist',
+    image: '/image6.png',
+    category: 'Artificial Intelligence'
+  },
+  {
+    id: '5',
+    title: 'The Rise of Autonomous Harvesters in Large-Scale Farming',
+    excerpt: 'Exploring the efficiency gains and operational shifts as robotic fleets take over the intensive labor of seasonal corn and wheat harvesting.',
+    date: 'February 02, 2026',
+    author: 'Robotics Team',
+    image: '/image5.png',
+    category: 'Automation'
+  },
+  {
+    id: '6',
+    title: 'Micro-Climate Control in Modern Smart Greenhouses',
+    excerpt: 'Balancing temperature, humidity, and CO2 levels actively to accelerate flowering phases and ensure premium crop quality year-round.',
+    date: 'January 18, 2026',
+    author: 'AgriExpert',
+    image: '/image4.png',
+    category: 'Environment'
   }
 ];
 

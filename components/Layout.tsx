@@ -74,13 +74,22 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
   );
 };
 
+import { useAuth } from '../context/AuthContext';
+import { ProfileSettingsModal } from './ProfileSettingsModal';
+import { LogOut, UserCircle } from 'lucide-react';
+
 export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigate, headerExtra }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   
+  // New User Menu States
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  
   const { notifications, toasts, removeToast, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { language, setLanguage, t, dir } = useLanguage();
+  const { user, logout } = useAuth(); // Auth integration
 
   // Search State
   const [searchQuery, setSearchQuery] = useState('');
@@ -260,16 +269,56 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           ))}
         </nav>
 
-        <div className="flex-shrink-0 p-4 border-t border-slate-800">
-          <div className="flex items-center space-x-3 px-4 py-2">
-            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-              <User size={16} />
+        <div className="flex-shrink-0 p-4 border-t border-slate-800 relative">
+          <button 
+            onClick={() => setUserMenuOpen(!userMenuOpen)}
+            className="w-full flex items-center justify-between px-2 py-2 hover:bg-slate-800 rounded-lg transition-colors group"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 text-slate-900 rounded-full bg-slate-700 bg-white/20 border border-white/20 flex items-center justify-center overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="font-bold text-sm text-slate-100">{user?.name?.charAt(0)?.toUpperCase()}</span>
+                )}
+              </div>
+              <div className={`text-left ${dir === 'rtl' ? 'mr-2' : 'ml-2'}`}>
+                <p className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors line-clamp-1">{user?.name || "User"}</p>
+                <p className="text-xs text-slate-400 capitalize">{user?.role?.toLowerCase()?.replace('_', ' ') || "Loading..."}</p>
+              </div>
             </div>
-            <div className={dir === 'rtl' ? 'mr-3' : 'ml-3'}>
-              <p className="text-sm font-medium">Farm Admin</p>
-              <p className="text-xs text-emerald-400">Pro Plan</p>
-            </div>
-          </div>
+          </button>
+
+          {/* User Floating Dropdown Menu */}
+          {userMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
+              <div className={`absolute bottom-full mb-2 w-[calc(100%-2rem)] mx-4 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden`}>
+                <button 
+                  onClick={() => {
+                    setProfileModalOpen(true);
+                    setUserMenuOpen(false);
+                    setSidebarOpen(false); // Close mobile sidebar if open
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                >
+                  <UserCircle size={16} />
+                  Edit Profile
+                </button>
+                <div className="h-px bg-slate-700"></div>
+                <button 
+                  onClick={() => {
+                    logout();
+                    setUserMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-400 hover:bg-slate-700 transition-colors text-left"
+                >
+                  <LogOut size={16} />
+                  Log Out
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 
@@ -451,6 +500,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, currentPage, onNavigat
           </div>
         </main>
       </div>
+
+      {/* Profile Edit Modal */}
+      <ProfileSettingsModal 
+        isOpen={profileModalOpen} 
+        onClose={() => setProfileModalOpen(false)} 
+      />
     </div>
   );
 };
