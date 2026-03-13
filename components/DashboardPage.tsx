@@ -1,6 +1,9 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
+import { ApiService } from '../services/api';
+import { WeatherData } from '../types';
+import { MOCK_WEATHER } from '../constants';
 import { 
   TrendingUp, 
   Users, 
@@ -17,6 +20,30 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { t, dir } = useLanguage();
+
+  const [weather, setWeather] = useState<WeatherData>(MOCK_WEATHER);
+
+  useEffect(() => {
+    let mounted = true;
+    const fetchWeather = async () => {
+      try {
+        const data = await ApiService.getWeather();
+        if (mounted) {
+          setWeather(data);
+        }
+      } catch (e) {
+        console.error("Failed to fetch dashboard weather", e);
+      }
+    };
+    
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 300000); // 5 minutes
+    
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const stats = [
     { label: 'Total Area', value: '1,240 Ha', change: '+2.5%', icon: MapIcon, color: 'text-emerald-600', bg: 'bg-emerald-100' },
@@ -247,7 +274,12 @@ export const DashboardPage: React.FC = () => {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <p className="text-emerald-100 font-medium">Weather Forecast</p>
-                <h3 className="text-4xl font-bold mt-1">24°C</h3>
+                <h3 className="text-4xl font-bold mt-1">{weather.temp}°C</h3>
+                <div className="flex items-center gap-2 text-emerald-100 text-sm mt-2 opacity-90">
+                    <span className="font-medium">{weather.condition}</span>
+                    <span>•</span>
+                    <span>{weather.location}</span>
+                </div>
               </div>
               <CloudRain size={48} className="text-white opacity-80" />
             </div>
@@ -257,14 +289,14 @@ export const DashboardPage: React.FC = () => {
                   <Droplets size={14} />
                   <span className="text-xs font-medium">Humidity</span>
                 </div>
-                <p className="font-bold">62%</p>
+                <p className="font-bold">{weather.humidity}%</p>
               </div>
               <div className="bg-white/10 backdrop-blur p-3 rounded-2xl">
                 <div className="flex items-center gap-2 text-emerald-100 mb-1">
                   <Wind size={14} />
                   <span className="text-xs font-medium">Wind</span>
                 </div>
-                <p className="font-bold">12 km/h</p>
+                <p className="font-bold">{weather.windSpeed} km/h</p>
               </div>
             </div>
           </div>
